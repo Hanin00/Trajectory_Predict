@@ -1,11 +1,3 @@
-# ==============================================================
-#   Copyright (C) 2021 whubaichuan. All rights reserved.
-#   function： Demo of Vessel Trajectory Prediction by sequence-to-sequence model (LSTM)
-# ==============================================================
-#   Create by whubaichuan at 2021.05.02
-#   Version 1.0
-#   whubaichuan [huangbaichuan@whu.edu.cn]
-# ==============================================================
 import keras.layers
 import pandas as pd
 import numpy as np
