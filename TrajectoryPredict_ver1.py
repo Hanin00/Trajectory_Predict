@@ -38,58 +38,25 @@ matplotlib.rcParams['axes.unicode_minus'] =False
 # print(len(data.iloc[0][:]))
 # print(data.iloc[0][:][1])
 
-
-#data = loadData의 data[i]
-
-# def loadData2(data) :
-#     x_x = data.iloc[:][0][0]
-#     x_y = data.iloc[:][0][1]
-#     y = data.iloc[:][1]
-#
-#     i = 0
-#     data = {"x_x": x_x,
-#             "x_y": x_y, }
-#     dataPd = pd.DataFrame(data)
-#     dataPd.loc[len(dataPd)] = y
-#
-#     scaler = MinMaxScaler(feature_range=(0, 1))
-#     scaled_data = scaler.fit_transform(dataPd[['x_x', 'x_y']].values)
-#     reframed = series_to_supervised(scaled_data, 5,
-#                                     1)  # t = 50 ;  # 12 -> step = 5 + predict = 1 <- feature = x_pos, y_pos
-#
-#     train_days = 50  # 50
-#     # valid_days = 2
-#     values = reframed.values
-#     train = values[:train_days + 1, :, ]
-#     # valid = values[-valid_days:, :] #<-전체 데이터에서 분류할 것
-#     # return values, train, valid
-#     return values, train
-# def series_to_supervised2(data, n_in=1, n_out=1, dropnan=True):
-#     n_vars = 1 if type(data) is list else data.shape[1]
-#     df = pd.DataFrame(data)
-#     cols, names = list(), list()
-#     # input sequence (t-n, ... t-1)
-#     for i in range(n_in, 0, -1):
-#         cols.append(df.shift(i))
-#         names += [('var%d(t-%d)' % (j+1, i)) for j in range(n_vars)]
-#     # forecast sequence (t, t+1, ... t+n)
-#     for i in range(0, n_out):
-#         cols.append(df.shift(-i))
-#         if i == 0:
-#             names += [('var%d(t)' % (j+1)) for j in range(n_vars)]
-#         else:
-#             names += [('var%d(t+%d)' % (j+1, i)) for j in range(n_vars)]
-#
-#     # put it all together
-#     agg = pd.concat(cols, axis=1)
-#     agg.columns = names
-#     # drop rows with NaN values
-#     if dropnan:
-#         agg.dropna(inplace=True)
-#     return agg
-
-
 def loadData(data) :
+
+
+    trainX = trainData['feature'].values
+    trainY = trainData['label']
+
+    print(trainY)
+    sys.exit()
+
+    trainX_new = []
+    for i in range(len(trainX)):
+        for j in trainX[i]:
+            trainX_new.append(j)
+
+
+    trainX = pd.DataFrame(trainX_new, columns=['x', 'y'])
+    trainY = pd.DataFrame(trainX_new, columns=['x', 'y'])
+
+
     x_x = data.iloc[:][0][0]
     x_y = data.iloc[:][0][1]
     y = data.iloc[:][1]
@@ -127,11 +94,11 @@ def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
             names += [('var%d(t)' % (j+1)) for j in range(n_vars)]
         else:
             names += [('var%d(t+%d)' % (j+1, i)) for j in range(n_vars)]
-
-
     # put it all together
     agg = pd.concat(cols, axis=1)
     agg.columns = names
+
+    print(agg.head())
     # drop rows with NaN values
     if dropnan:
         agg.dropna(inplace=True)
@@ -154,18 +121,10 @@ class LSTM(nn.Module):
         self.fc = nn.Linear(hidden_dim, output_dim)
 
     def forward(self, x):
-        # Initialize hidden state with zeros
-        # fc = nn.Linear(hidden_dim, output_dim)
-
         h0 = torch.zeros(self.num_layers, x.size(1), self.hidden_dim).requires_grad_()
-
         # Initialize cell state
         c0 = torch.zeros(self.num_layers, x.size(1), self.hidden_dim).requires_grad_()
 
-        # We need to detach as we are doing truncated backpropagation through time (BPTT)
-        # If we don't, we'll backprop  all the way to the start even after going through another batch
-
-        # out, (hn, cn) = self.lstm(x, (h0.detach(), c0.detach()))
         out, (hn, cn) = self.lstm(x)
 
         # Index hidden state of last time step
