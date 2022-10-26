@@ -145,11 +145,6 @@ def train(trainData) :
             train_X = torch.Tensor(train_X)
             train_y = torch.Tensor(train_y)
 
-            print(train_X)
-            print(train_X[0])
-            sys.exit()
-
-
             y_train_pred = model(train_X)
 
             loss = loss_fn(y_train_pred, train_y)

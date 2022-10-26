@@ -25,13 +25,14 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 import pickle
+from sklearn.preprocessing import minmax_scale
 
 '''
     ver 1 : 50개의 데이터를 5일마다의 간격으로 학습하고 이를 300번 반복
     ver 2 : 300*50 개의 데이터를 50일 마다
 
 '''
-
+import scipy.stats as ss
 
 pd.set_option('display.max_rows', None)
 
@@ -74,144 +75,98 @@ def series_to_supervised(dataX, n_in=1, n_out=1, dropnan=True):
 
 # Here we define our model as a class
 class LSTM(nn.Module):
-    def __init__(self, input_dim, hidden_dim, seq_len, num_layers,
+    def __init__(self, input_dim, hidden_dim, num_layers,
                  output_dim):  # num_layers : 2, hidden_dim : 32, input_dim : 1, self : LSTM(1,32,2,batch_firsttrue)
         super(LSTM, self).__init__()
         # Hidden dimensions
         self.hidden_dim = hidden_dim
         # Number of hidden layers
         self.num_layers = num_layers
-        self.c1 = nn.Conv1d(in_channels=input_1d.shape[1], out_channels=input_1d.shape[2],
-                            kernel_size=input_1d.shape[2], stride=input_1d.shape[1])
-        # self.c1 = nn.Conv1d(in_channels=1, out_channels=1, kernel_size=2, stride=1)  # 1D CNN 레이어 추가
+
         # batch_first=True causes input/output tensors to be of shape
         # (batch_dim, seq_dim, feature_dim)
         self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
         # Readout layer
         self.fc = nn.Linear(hidden_dim, output_dim)
-        self.seq_len = seq_len
 
-    def reset_hidden_state(self):
-        self.hidden = (
-            torch.zeros(self.num_layers, self.seq_len - 1, self.hidden_dim),
-            torch.zeros(self.num_layers, self.seq_len - 1, self.hidden_dim)
-        )
+    def forward(self, x):
+        # Initialize hidden state with zeros
+        # fc = nn.Linear(hidden_dim, output_dim)
+        # print(x.shape)
+        # print(x.size(1))
+        #
+        # print(x)
+        # sys.exit()
+        #
 
-    def forward(self, sequences):
-        #[50, 49, -1]
+        h0 = torch.zeros(self.num_layers, x.size(1), self.hidden_dim).requires_grad_()
 
-        sequences = self.c1(sequences.view(len(sequences), 1, -1))
+        # Initialize cell state
+        c0 = torch.zeros(self.num_layers, x.size(1), self.hidden_dim).requires_grad_()
 
-        sequences = self.c1(in_channels=input_1d.shape[1], out_channels=input_1d.shape[2],
-                            kernel_size=input_1d.shape[2], stride=input_1d.shape[1])
+        # We need to detach as we are doing truncated backpropagation through time (BPTT)
+        # If we don't, we'll backprop  all the way to the start even after going through another batch
 
-        lstm_out, self.hidden = self.lstm(
-            sequences.view(len(sequences), self.seq_len - 1, -1),
-            self.hidden
-        )
-        last_time_step = lstm_out.view(self.seq_len - 1, len(sequences), self.hidden_dim)[-1]
-        y_pred = self.fc(last_time_step)
-        return y_pred
+        out, (hn, cn) = self.lstm(x, (h0.detach(), c0.detach()))
+        # out, (hn, cn) = self.lstm(x)
 
-
-def train_model(model, trainX, trainY, val_data=None, val_labels=None, num_epochs=100, verbose=10,
-                patience=10):
-
-    trainX_x = [trainX[i][0] for i in range(len(trainX))]
-    trainX_y = [trainX[i][1] for i in range(len(trainX))]
-
-    trainXdict = { 'x' : trainX_x,
-                   'y' : trainX_y}
-    Xdf = pd.DataFrame(trainXdict)
-
-    trainY_x = [trainY[i][0] for i in range(len(trainY))]
-    trainY_y = [trainY[i][1] for i in range(len(trainY))]
-
-    trainYdict = { 'x' : trainY_x,
-                   'y' : trainY_y}
-    Ydf = pd.DataFrame(trainYdict)
-
-    #todo - Xdf.columns = ['x','y']
-    loss_fn = torch.nn.L1Loss()  #
-    optimiser = torch.optim.Adam(model.parameters(), lr=0.001)
-    train_hist = []
-    val_hist = []
-
-    xDumm = torch.Tensor(trainX)
-    xNpArray = np.array(trainX)
+        # Index hidden state of last time step
+        # out.size() --> 100, 32, 100
+        # out[:, -1, :] --> 100, 100 --> just want last time step hidden states!
+        # out = self.fc(out[:, -1, :])
+        out = self.fc(out[:, :])
+        # out.size() --> 100, 10
+        return out
 
 
-    # xDumm = {'x' : trainX_x}
-    # trainx_dumm = pd.DataFrame(xDumm)
-    # yDumm = {'x' : trainY_x}
-    # trainy_dumm = pd.DataFrame(yDumm)
-    # print(len(xDumm)) #210
-    # print(len(xDumm[0])) #50
-
-    input_1d = xDumm
-    print(input_1d.shape)
-    sys.exit()
-
-
-
-    # cnn1d_4 = nn.Conv1d(in_channels=input_1d.shape[1], out_channels=input_1d.shape[2], kernel_size=input_1d.shape[2], stride=input_1d.shape[1])
-    # print("cnn1d_4: \n")
-    # print(cnn1d_4(input_1d).shape, "\n") #torch.Size([210, 2, 1])
-    # print(cnn1d_4(input_1d)) #t
-    # print(len(cnn1d_4(input_1d))) #210 -> 두 번 째
-
+def training(trainData):
     for t in range(num_epochs):
-        epoch_loss = 0
 
-        for idx, seq in enumerate(xNpArray):  # sample 별 hidden state reset을 해줘야 함
+        train_X = torch.Tensor([trainData['feature'].iloc[i] for i in range(len(trainData))])
+        train_y = torch.Tensor(trainData['label'])
 
-            model.reset_hidden_state()
-            # train loss
-            # seq = torch.unsqueeze(seq, 0)
+        y_train_pred = model(train_X)
 
-            y_pred = model(seq)
-            loss = loss_fn(y_pred[0].float(), train_labels[idx])  # 1개의 step에 대한 loss
+        loss = loss_fn(y_train_pred, train_y)
 
-            # update weights
-            optimiser.zero_grad()
-            loss.backward()
-            optimiser.step()
+        x_loss = loss_fn(y_train_pred[:, 0], train_y[:, 0])
+        y_loss = loss_fn(y_train_pred[:, 1], train_y[:, 1])
 
-            epoch_loss += loss.item()
+        if t % 10 == 0 and t != 0:
+            print("Epoch ", t, "MSE: ", loss.item())
+            print("x_loss : ", x_loss.item())
+            print("y_loss : ", y_loss.item())
 
-        train_hist.append(epoch_loss / len(train_data))
+        hist[t] = loss.item()
 
-        if val_data is not None:
+        # Zero out gradient, else they will accumulate between epochs
+        optimiser.zero_grad()
 
-            with torch.no_grad():
+        # Backward pass
+        loss.backward()
 
-                val_loss = 0
-                for val_idx, val_seq in enumerate(val_data):
-                    model.reset_hidden_state()  # seq 별로 hidden state 초기화
+        # Update parameters
+        optimiser.step()
+        train_predict = model(train_X)
 
-                    val_seq = torch.unsqueeze(val_seq, 0)
-                    y_val_pred = model(val_seq)
-                    val_step_loss = loss_fn(y_val_pred[0].float(), val_labels[val_idx])
+    plt.figure(figsize=(24, 8))
+    plt.xlabel('x')
+    plt.ylabel('y')
 
-                    val_loss += val_step_loss
+    # train-values의 X값 비교
+    plt.title(label="train-values의 X값 비교")
+    plt.plot(list(range(len(train_values[:, 0]))), train_values[:, 0], label='raw_trajectory', c='b')
+    plt.plot(list(range(len(train_predict[:, 0]))), train_predict[:, 0].detach().numpy(), label='test_predict', c='r')
+    plt.legend()
+    plt.show()
 
-            val_hist.append(val_loss / len(val_data))  # val hist에 추가
-
-            ## verbose 번째 마다 loss 출력
-            if t % verbose == 0:
-                print(f'Epoch {t} train loss: {epoch_loss / len(train_data)} val loss: {val_loss / len(val_data)}')
-
-            ## patience 번째 마다 early stopping 여부 확인
-            if (t % patience == 0) & (t != 0):
-                ## loss가 커졌다면 early stop
-                if val_hist[t - patience] < val_hist[t]:
-                    print('\n Early Stopping')
-                    break
-
-        elif t % verbose == 0:
-            print(f'Epoch {t} train loss: {epoch_loss / len(train_data)}')
-
-    return model, train_hist, val_hist
+    plt.gca()
+    # train-values의 Y값 비교
+    plt.title(label="train-values의 Y값 비교")
+    plt.plot(list(range(len(train_values[:, 1]))), train_values[:, 1], label='raw_trajectory', c='b')
+    plt.plot(list(range(len(train_predict[:, 1]))), train_predict[:, 1].detach().numpy(), label='test_predict', c='r')
+    plt.legend()
+    plt.show()
 
 def test(testX, testY) :
     # 데이터 하나 당 epoch 씩 학습
@@ -257,63 +212,23 @@ def test(testX, testY) :
 '''
     scaler, train-test split
 '''
+
 def loadData(data, ratio=0.7, time=50) :
+    x_data = [minmax_scale(data['feature'].iloc[i]) for i in range(len(data))]
 
-    x_x = []
-    [x_x.extend(data['feature'].iloc[i][0]) for i in range(len(data))] #50개마다 다른 차량
-    x_y = []
-    [x_y.extend(data['feature'].iloc[i][1]) for i in range(len(data))]  # 50개마다 다른 차량
+    xDf = {'feature' : x_data}
+    trainDummDf = pd.DataFrame(xDf)
+    y_data = data['label']
 
-    xDict = {'x_x' : x_x,
-                'x_y' : x_y}
-    xDf = pd.DataFrame(xDict)
+    #todo y 값은 전체 값에 대해서 normalize 한 후 변경하던가 해야 할 듯.
 
-    y_x = []
-    [y_x.append(data['label'][i][0]) for i in range(len(data['label']))]
-    y_y = []
-    [y_y.append(data['label'][i][1]) for i in range(len(data['label']))]
+    totalDf =  pd.concat([trainDummDf, y_data], axis = 1)
 
-    yDict = { 'y_x' : y_x,
-              'y_y' : y_y}
+    flag = int(len(totalDf)*ratio)
+    train = totalDf.iloc[:flag]
+    test = totalDf.iloc[flag:]
 
-    yDf = pd.DataFrame(yDict)
-
-    scaler = MinMaxScaler(feature_range=(0, 1))
-    scaled_x_total = scaler.fit_transform(xDf[['x_x', 'x_y']]).tolist()
-    scaled_y_total = scaler.fit_transform(yDf[['y_x', 'y_y']]).tolist()
-
-    yflag = int(len(yDf) * ratio)
-    xflag = int(len(xDf)//len(yDf)) * yflag  # 300
-
-
-    trainX = scaled_x_total[:xflag]
-    trainY = scaled_y_total[:yflag]
-    testX = scaled_x_total[xflag:]
-    testY = scaled_y_total[yflag:]
-
-    trainX_x = [trainX[i][0] for i in range(len(trainX))]
-    trainX_y = [trainX[i][1] for i in range(len(trainX))]
-
-    trainXdict = {'x': trainX_x,
-                  'y': trainX_y}
-    Xdf = pd.DataFrame(trainXdict)
-
-    trainY_x = [trainY[i][0] for i in range(len(trainY))]
-    trainY_y = [trainY[i][1] for i in range(len(trainY))]
-
-    trainYdict = {'x': trainY_x,
-                  'y': trainY_y}
-    Ydf = pd.DataFrame(trainYdict)
-
-    # todo - Xdf.columns = ['x','y']
-
-    xDumm = torch.Tensor(trainX)
-    print(xDumm.shape)
-    sys.exit()
-
-
-
-    return trainX, trainY, testX, testY
+    return train, test
 
 
 
@@ -322,50 +237,33 @@ if __name__ == '__main__':
 
     path = "D:/Semester2201/LAB/Vessel_Trajectory_Prediction-main/"
 
-    # with open('./data/data_prof.pickle', 'rb') as f :
+    with open('./data/data_prof.pickle', 'rb') as f :
     # with open('./data/data_ver2_1025.pickle', 'rb') as f :
-    with open('./data/listTrainData.pickle', 'rb') as f:
+    # with open('./data/listTrainData.pickle', 'rb') as f:
         data = pickle.load(f)
 
-    # trainX, trainY, testXmodel, testY = loadData(data)
-    # 나중에 denomalize 할 때 사용하려면, 전체 데이터에 대해 scale 해야 하는 것 아닌가? 어차피 상관 없나?
-
-    trainX, trainY, testX, testY = loadData(data)
-
-    #trainX를 50개씩 끊어서 모델에 넣어야 할 듯. 그래야 sequential이 될 것 같음
-    print(len(trainX))
-    trainXList = []
-    a = []
-    cnt = 0
-    for i in range(len(trainX)) :
-        a.append(trainX[i])
-        cnt += 1
-        if cnt == 50 :
-            trainXList.append(a)
-            a = []
-            cnt = 0
+    trainData, testData = loadData(data)
 
     #INIT - model
     #####################
     num_epochs = 200
     hist = np.zeros(num_epochs)
 
-    # Number of steps to unroll
-    # seq_dim = look_back - 1
-    input_dim = trainXList.shape
+    # print(trainData.iloc[0].size)
+    # print(trainData['feature'].iloc[0])
+    print(trainData['feature'].size) #210
+    print(trainData['feature'].iloc[0].size) #100
+
+
+    input_dim = 2
     hidden_dim = 128
+    num_layers = 210
 
-    num_layers = 2
     output_dim = 2
-    seq_len = 50
 
+    model = LSTM(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, num_layers=num_layers)
+    loss_fn = torch.nn.MSELoss()
+    optimiser = torch.optim.Adam(model.parameters(), lr=0.01)
 
-    model = LSTM(input_dim=input_dim, hidden_dim=hidden_dim, seq_len = 50, num_layers=num_layers, output_dim=output_dim)
-    # model = LSTM(input_dim=input_dim, hidden_dim=hidden_dim, seq_len = 50, num_layers=num_layers, output_dim=output_dim)
-
-
-    # trainXList : 50개씩 나뉨
-    train_model(model, trainXList, trainY)
-    # train_model(model, trainX, trainY)
-    test(testX, testY)
-
+    training(trainData)
+    test(testData)
