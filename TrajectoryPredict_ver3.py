@@ -7,8 +7,6 @@ import matplotlib
 import glob, os
 import seaborn as sns
 import sys
-from sklearn.preprocessing import MinMaxScaler
-import sys
 import random
 
 from pylab import mpl, plt
@@ -120,6 +118,9 @@ class LSTM(nn.Module):
 
 def training(trainData):
     for t in range(num_epochs):
+        loss_fn = torch.nn.MSELoss()
+        optimiser = torch.optim.Adam(model.parameters(), lr=0.01)
+
 
         # train_X = torch.Tensor([trainData['feature'].iloc[i] for i in range(len(trainData))])
 
@@ -133,13 +134,10 @@ def training(trainData):
 
         train_y = torch.Tensor(trainData['label'])
 
-
-
-
         #print(train_X.size()) #torch.Size([210, 100]) <- 짝수 : x, 홀수 : y
 
         y_train_pred = model(train_X)
-
+        # y_train_pred = torch.Tensor(x_scaler.inverse_transform(y_train_pred.detach().numpy()))
         loss = loss_fn(y_train_pred, train_y)
 
         x_loss = loss_fn(y_train_pred[:, 0], train_y[:, 0])
@@ -227,25 +225,49 @@ def test(testX, testY) :
 '''
 
 def loadData(data, ratio=0.7, time=50) :
-    x_data = [minmax_scale(data['feature'].iloc[i]) for i in range(len(data))]
+    x_scaler = MinMaxScaler(feature_range=(0, 1))
+    y_scaler = MinMaxScaler(feature_range=(0, 1))
+
+    # x_data = [minmax_scale(data['feature'].iloc[i]) for i in range(len(data))]
+    x_data = [x_scaler.fit_transform(data['feature'].iloc[i]) for i in range(len(data))]
 
     xDf = {'feature' : x_data}
     trainDummDf = pd.DataFrame(xDf)
 
-    y_data = data['label']
 
+    y_data_x = [data['label'].iloc[i][0] for i in range(len(data['label']))]
+    y_data_y = [data['label'].iloc[i][1] for i in range(len(data['label']))]
+
+
+
+    yData = *y_data_x, *y_data_y
+    yData = torch.Tensor(list(yData)).unsqueeze(dim=1)
+    print(yData)
+    yData = y_scaler.fit_transform(yData)
+
+    scaled_yx = yData[:300]
+    scaled_yy = yData[300:]
+
+    scaledY = [[*scaled_yx[i], *scaled_yy[i]] for i in range(len(scaled_yy))]
+
+    scaledYDict = {'label' : scaledY}
+    scaledY = pd.DataFrame(scaledYDict)
+
+    # y_data = [y_scaler.fit_transform(data['label'].iloc[i]) for i in range(len(data))]
+
+    # y_data = [y_scaler.fit_transform(data['label'].iloc[i])]
 
     #todo y 값은 전체 값에 대해서 normalize 한 후 변경하던가 해야 할 듯.
+    totalDf =  pd.concat([trainDummDf, scaledY], axis = 1)
 
-    totalDf =  pd.concat([trainDummDf, y_data], axis = 1)
+    print(totalDf.head())
+
 
     flag = int(len(totalDf)*ratio)
     train = totalDf.iloc[:flag]
     test = totalDf.iloc[flag:]
 
-    return train, test
-
-
+    return train, test, x_scaler, y_scaler
 
 
 if __name__ == '__main__':
@@ -257,7 +279,7 @@ if __name__ == '__main__':
     # with open('./data/listTrainData.pickle', 'rb') as f:
         data = pickle.load(f)
 
-    trainData, testData = loadData(data)
+    trainData, testData, x_scaler, y_scaler = loadData(data)
 
     #INIT - model
     #####################
@@ -275,8 +297,8 @@ if __name__ == '__main__':
     output_dim = 2
 
     model = LSTM(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, num_layers=num_layers)
-    loss_fn = torch.nn.MSELoss()
-    optimiser = torch.optim.Adam(model.parameters(), lr=0.01)
+    # loss_fn = torch.nn.MSELoss()
+    # optimiser = torch.optim.Adam(model.parameters(), lr=0.01)
 
     training(trainData)
     # test(testData)

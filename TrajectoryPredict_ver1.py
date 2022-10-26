@@ -279,5 +279,6 @@ if __name__ == '__main__':
     loss_fn = torch.nn.MSELoss()
     optimiser = torch.optim.Adam(model.parameters(), lr=0.01)
 
+
     train(trainData)
     test(testData)
