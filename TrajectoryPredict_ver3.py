@@ -82,7 +82,6 @@ class LSTM(nn.Module):
         self.hidden_dim = hidden_dim
         # Number of hidden layers
         self.num_layers = num_layers
-
         # batch_first=True causes input/output tensors to be of shape
         # (batch_dim, seq_dim, feature_dim)
         self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
@@ -96,13 +95,13 @@ class LSTM(nn.Module):
         # print(x.size(1))
         #
         # print(x)
-        # sys.exit()
-        #
 
-        h0 = torch.zeros(self.num_layers, x.size(1), self.hidden_dim).requires_grad_()
+        # h0 = torch.zeros(self.num_layers, x.size(1), self.hidden_dim).requires_grad_()
+        h0 = torch.zeros(self.num_layers, self.hidden_dim).requires_grad_()
 
         # Initialize cell state
-        c0 = torch.zeros(self.num_layers, x.size(1), self.hidden_dim).requires_grad_()
+        # c0 = torch.zeros(self.num_layers, x.size(1), self.hidden_dim).requires_grad_()
+        c0 = torch.zeros(self.num_layers, self.hidden_dim).requires_grad_()
 
         # We need to detach as we are doing truncated backpropagation through time (BPTT)
         # If we don't, we'll backprop  all the way to the start even after going through another batch
@@ -122,8 +121,22 @@ class LSTM(nn.Module):
 def training(trainData):
     for t in range(num_epochs):
 
-        train_X = torch.Tensor([trainData['feature'].iloc[i] for i in range(len(trainData))])
+        # train_X = torch.Tensor([trainData['feature'].iloc[i] for i in range(len(trainData))])
+
+        a = []
+        for i in range(len(trainData)) :
+            b = []
+            for j in range(len(trainData['feature'].iloc[i])) :
+                b.extend(trainData['feature'].iloc[i][j])
+            a.append(b)
+        train_X = torch.Tensor(a)
+
         train_y = torch.Tensor(trainData['label'])
+
+
+
+
+        #print(train_X.size()) #torch.Size([210, 100]) <- 짝수 : x, 홀수 : y
 
         y_train_pred = model(train_X)
 
@@ -218,7 +231,9 @@ def loadData(data, ratio=0.7, time=50) :
 
     xDf = {'feature' : x_data}
     trainDummDf = pd.DataFrame(xDf)
+
     y_data = data['label']
+
 
     #todo y 값은 전체 값에 대해서 normalize 한 후 변경하던가 해야 할 듯.
 
@@ -251,13 +266,11 @@ if __name__ == '__main__':
 
     # print(trainData.iloc[0].size)
     # print(trainData['feature'].iloc[0])
-    print(trainData['feature'].size) #210
-    print(trainData['feature'].iloc[0].size) #100
 
 
-    input_dim = 2
+    input_dim = 100
     hidden_dim = 128
-    num_layers = 210
+    num_layers = 2
 
     output_dim = 2
 
@@ -266,4 +279,4 @@ if __name__ == '__main__':
     optimiser = torch.optim.Adam(model.parameters(), lr=0.01)
 
     training(trainData)
-    test(testData)
+    # test(testData)

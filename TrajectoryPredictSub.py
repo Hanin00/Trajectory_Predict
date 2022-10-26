@@ -49,7 +49,7 @@ def preprocessing(dataX, dataY) :
 
     reframed = series_to_supervised(scaled_data, 50,1)  # t = 50 ;  # 12 -> step = 5 + predict = 1 <- feature = x_pos, y_pos
 
-    print(reframed.sys.)
+
 
     train_days = 210
     # valid_days = 2
