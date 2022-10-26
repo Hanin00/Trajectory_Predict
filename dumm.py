@@ -26,6 +26,27 @@ from torch.autograd import Variable
 import pickle
 
 
+
+import networkx as nx
+with open('./data/subs.pkl', 'rb') as f:
+    data = pickle.load(f)
+print(len(data))
+print(data[0].nodes(data=True))
+sys.exit()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 matplotlib.rcParams['font.family'] ='Malgun Gothic'
 matplotlib.rcParams['axes.unicode_minus'] =False
 

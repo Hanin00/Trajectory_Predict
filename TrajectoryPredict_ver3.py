@@ -1,4 +1,5 @@
-import keras.layers
+# ref) https://coding-yoon.tistory.com/190 \
+
 import pandas as pd
 import numpy as np
 
@@ -96,6 +97,8 @@ class LSTM(nn.Module):
         )
 
     def forward(self, sequences):
+        #[50, 49, -1]
+
         sequences = self.c1(sequences.view(len(sequences), 1, -1))
         lstm_out, self.hidden = self.lstm(
             sequences.view(len(sequences), self.seq_len - 1, -1),
@@ -129,29 +132,25 @@ def train_model(model, trainX, trainY, val_data=None, val_labels=None, num_epoch
     train_hist = []
     val_hist = []
 
-    xDumm = torch.Tensor(trainX_x)
-
-    xDumm50 = []
-
-
-
-
+    # xDumm = torch.Tensor(trainX)
+    xNpArray = np.array(trainX)
 
     # xDumm = {'x' : trainX_x}
     # trainx_dumm = pd.DataFrame(xDumm)
     # yDumm = {'x' : trainY_x}
     # trainy_dumm = pd.DataFrame(yDumm)
-
+    # print(len(xDumm)) #210
+    # print(len(xDumm[0])) #50
 
     for t in range(num_epochs):
         epoch_loss = 0
 
-        for idx, seq in enumerate(xDumm):  # sample 별 hidden state reset을 해줘야 함
-            print() #tensor 하나만 나옴. 이거 여러 개 나와야 함
+        for idx, seq in enumerate(xNpArray):  # sample 별 hidden state reset을 해줘야 함
 
             model.reset_hidden_state()
             # train loss
             # seq = torch.unsqueeze(seq, 0)
+
             y_pred = model(seq)
             loss = loss_fn(y_pred[0].float(), train_labels[idx])  # 1개의 step에 대한 loss
 
@@ -212,12 +211,6 @@ def test(testX, testY) :
 
         loss = loss_fn(y_test_pred, test_y)
         print("test loss : ", loss.item())
-
-        # x_loss = loss_fn(test_values[0], test_y[0])
-        # y_loss = loss_fn(test_values[1], test_y[1])
-        #
-        # print("x_loss : ",x_loss.item())
-        # print("y_loss : ",y_loss.item())
 
 
         test_predict = model(test_X)
@@ -300,7 +293,7 @@ if __name__ == '__main__':
 
     trainX, trainY, testX, testY = loadData(data)
 
-    #trainX를 50개씩 끊어서 모델에 넣어야 할 듯. 그래야 sequenctial이 될 것 같음
+    #trainX를 50개씩 끊어서 모델에 넣어야 할 듯. 그래야 sequential이 될 것 같음
     print(len(trainX))
     trainXList = []
     a = []
