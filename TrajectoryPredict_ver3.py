@@ -166,9 +166,6 @@ def test(testData) :
     test_y = torch.Tensor(testData['label'])
     # y_test_pred = model(test_X)
 
-
-
-
     with torch.no_grad():
         preds = []
         for _ in range(len(test_X)):
@@ -194,7 +191,33 @@ def loadData(data, ratio=0.7, time=50) :
     y_scaler = MinMaxScaler(feature_range=(0, 1))
 
     # x_data = [minmax_scale(data['feature'].iloc[i]) for i in range(len(data))]
-    x_data = [x_scaler.fit_transform(data['feature'].iloc[i]) for i in range(len(data))]
+    # x_data = [x_scaler.fit_transform(data['feature'].iloc[i]) for i in range(len(data))]
+    x_data = data['feature']
+
+    x_data_x = []
+    x_data_y = []
+
+    for i in range(len(x_data)) :  # 300
+        for j in range(len(x_data.iloc[i])) :  #50
+            x_data_x.append(x_data.iloc[i][j][0]) # x값
+            x_data_y.append(x_data.iloc[i][j][1]) # y값
+
+    xData = *x_data_x, *x_data_y
+    xData = torch.Tensor(list(xData)).unsqueeze(dim=1)
+
+    xData = x_scaler.fit_transform(xData)
+
+    xData_x = xData[:int(len(xData)//2)]  #15000
+    xData_y = xData[int(len(xData)//2):]  #15000
+
+    scaledX = []
+    for i in range(len(x_data)) :
+        seq = []
+        for j in range(50) :
+            idx = i * 50 + j
+            seq.append([*xData_x[idx], *xData_y[idx]])
+            # scaledX.append([[*(xData_x[]), *(xData_y[i*50j])] for j in range(50)]) # 15000 // 50 = 300
+        scaledX.append(seq)
 
     xDf = {'feature' : x_data}
     trainDummDf = pd.DataFrame(xDf)
@@ -225,17 +248,14 @@ def loadData(data, ratio=0.7, time=50) :
 
 
 if __name__ == '__main__':
-
     path = "D:/Semester2201/LAB/Vessel_Trajectory_Prediction-main/"
-
     with open('./data/data_prof.pickle', 'rb') as f :
         data = pickle.load(f)
-
     trainData, testData, x_scaler, y_scaler = loadData(data)
 
     #INIT - model
     #####################
-    num_epochs = 20000
+    num_epochs = 200
     hist = np.zeros(num_epochs)
 
     input_dim = 100
