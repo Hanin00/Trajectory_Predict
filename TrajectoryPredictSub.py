@@ -25,6 +25,15 @@ import torch.nn as nn
 from torch.autograd import Variable
 import pickle
 
+'''
+    ver 1 : 50개의 데이터를 5일마다의 간격으로 학습하고 이를 300번 반복
+    ver 2 : 300*50 개의 데이터를 50일 마다
+
+'''
+
+
+pd.set_option('display.max_rows', None)
+
 
 matplotlib.rcParams['font.family'] ='Malgun Gothic'
 matplotlib.rcParams['axes.unicode_minus'] =False
@@ -32,77 +41,82 @@ matplotlib.rcParams['axes.unicode_minus'] =False
 #[전체 데이터 개수,300][2 - XY][2 - 0 : x, 1 : y]
 
 
-def loadData(data) :
+def preprocessing(dataX, dataY) :
 
-    feature = trainData['feature'].values
-    label = trainData['label']
-    print()
+#todo data scaler
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    scaled_data = scaler.fit_transform(dataX[['x_x','x_y']])
 
-
-
-
+    reframed = series_to_supervised(scaled_data, 50,1)  # t = 50 ;  # 12 -> step = 5 + predict = 1 <- feature = x_pos, y_pos
 
 
-    reframed = series_to_supervised(scaled_data, 5,1)  # t = 50 ;  # 12 -> step = 5 + predict = 1 <- feature = x_pos, y_pos
+    train_days = 210
+    # valid_days = 2
+    values = reframed.values
+    train = values[:train_days + 1, :, ]
+    # valid = values[-valid_days:, :] #<-전체 데이터에서 분류할 것
 
-
-
-
-
-    names = []
-    [names.append('t{}'.format(i))for i in range(len(data['feature'][0]), 0,-1)]
-    # names = 't50', 't49', 't48', 't47', 't46',  ... , 't4', 't3', 't2', 't1'
-
-    # ref) https://blog.naver.com/nomadgee/220857820094
-    num = len(data['feature'][0])
-    # for k in range(num):  # 50번
-    #     globals()['t{}'.format(num - k)] = [data['feature'][c][k] for c in range(len(data))]
-    #     print(t50)
-    #     print(len(t50))
-    #
-    # dataX = {
-    #     't1' : t1,
-    #     't2': t2,
-    #     't3': t3,
-    #     't4': t4,
-    #     't5': t5,
-    #     't1': t1,
-    #     't1': t1,
-    #     't1': t1,'t1' : t1,'t1' : t1,
-    # #     't1': t1,
-    # # }
-    #
-    # dataPd = pd.DataFrame(, columns = names)
-    #
-    # scaled_data = scaler.fit_transform(data[[names]].values)
-    # # scaled_data = scaler.fit_transform(data[['X', 'Y']].values)
-    # print(scaled_data.head())
-    #
-    # sys.exit()
-    #
-    # reframed = series_to_supervised(scaled_data, 50,1)  # t = 50 ;  # 12 -> step = 5 + predict = 1 <- feature = x_pos, y_pos
-    #
-    #
-    # train_days = 300*50  # 50
-    # # valid_days = 2
-    # values = reframed.values
-    # train = values[:train_days + 1, :, ]
-    # # valid = values[-valid_days:, :] #<-전체 데이터에서 분류할 것
-    # # return values, train, valid
     return values, train, scaler
 
-def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
 
-    print(data)
-    sys.exit()
+    # names = []
+    # [names.append('t{}'.format(i))for i in range(len(data['feature'][0]), 0,-1)]
+    # # names = 't50', 't49', 't48', 't47', 't46',  ... , 't4', 't3', 't2', 't1'
+    #
+    # # ref) https://blog.naver.com/nomadgee/220857820094
+    # num = len(data['feature'][0])
+    # # for k in range(num):  # 50번
+    # #     globals()['t{}'.format(num - k)] = [data['feature'][c][k] for c in range(len(data))]
+    # #     print(t50)
+    # #     print(len(t50))
+    # #
+    # # dataX = {
+    # #     't1' : t1,
+    # #     't2': t2,
+    # #     't3': t3,
+    # #     't4': t4,
+    # #     't5': t5,
+    # #     't1': t1,
+    # #     't1': t1,
+    # #     't1': t1,'t1' : t1,'t1' : t1,
+    # # #     't1': t1,
+    # # # }
+    # #
+    # # dataPd = pd.DataFrame(, columns = names)
+    # #
+    # # scaled_data = scaler.fit_transform(data[[names]].values)
+    # # # scaled_data = scaler.fit_transform(data[['X', 'Y']].values)
+    # # print(scaled_data.head())
+    # #
+    # # sys.exit()
+    # #
+    # # reframed = series_to_supervised(scaled_data, 50,1)  # t = 50 ;  # 12 -> step = 5 + predict = 1 <- feature = x_pos, y_pos
+    # #
+    # #
+    # # train_days = 300*50  # 50
+    # # # valid_days = 2
+    # # values = reframed.values
+    # # train = values[:train_days + 1, :, ]
+    # # # valid = values[-valid_days:, :] #<-전체 데이터에서 분류할 것
+    # # # return values, train, valid
+    # return values, train, scaler
 
-    n_vars = 1 if type(data) is list else data.shape[1]
-    df = pd.DataFrame(data)
+#tran dataset 생성
+def series_to_supervised(dataX, n_in=1, n_out=1, dropnan=True):
+    # dataX = dataX.values
+    n_vars = 1 if type(dataX) is list else dataX.shape[1]
+    df = pd.DataFrame(dataX)
+    #dataX(50*210)개에 대해 50(n_in)개씩 이동
     cols, names = list(), list()
     # input sequence (t-n, ... t-1)
+    # 전체 데이터 수에서 50개씩 나눈 것 만큼 움직임(300개 기준 210번)
+    #
+
     for i in range(n_in, 0, -1):
+        print(i)
         cols.append(df.shift(i))
-        names += [('var%d(t-%d)' % (j+1, i)) for j in range(n_vars)]
+        names += [('var%d(t-%d)' % (j+1, i)) for j in range(n_vars)] #var1(t-50)
+
     # forecast sequence (t, t+1, ... t+n)
     for i in range(0, n_out):
         cols.append(df.shift(-i))
@@ -110,6 +124,12 @@ def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
             names += [('var%d(t)' % (j+1)) for j in range(n_vars)]
         else:
             names += [('var%d(t+%d)' % (j+1, i)) for j in range(n_vars)]
+
+    print(cols)
+    print(names)
+    print(len(cols))
+    print(len(names))
+    sys.exit()
 
 
     # put it all together
@@ -161,13 +181,13 @@ class LSTM(nn.Module):
 
 
 # 50개의 [X,Y] 궤적을 갖는 데이터 당 한 개의 [X,Y]좌표 Y label 300개
-def train(trainData) :
+def train(trainX, trainY) :
     loss_fn = torch.nn.MSELoss()
     optimiser = torch.optim.Adam(model.parameters(), lr=0.01)
 # 데이터 하나 당 epoch 씩 학습
+    train_values, train_data, scaler = preprocessing(trainX, trainY)
 
 
-    train_values, train_data, scaler = loadData(trainData)
 
     train_X, train_y = train_data[:, :-2], train_data[:, -2:]  # 끝에 두 개가  Y의 x,y에 대한 예측값
 
@@ -230,7 +250,7 @@ def train(trainData) :
     # print(x_loss)
 
 
-def test(testData) :
+def test(testX, testY) :
     # 데이터 하나 당 epoch 씩 학습
     for i in range(len(testData)):
         test_values, test_data, scaler  = loadData(testData.iloc[i])
@@ -276,6 +296,37 @@ def test(testData) :
     plt.legend()
     plt.show()
 
+#ratio : train-test 비율 / time = 궤적 개수
+def loadData(data, ratio=0.7, time=50) :
+
+    x_x = []
+    [x_x.extend(data['feature'].iloc[i][0]) for i in range(len(data))] #50개마다 다른 차량
+    x_y = []
+    [x_y.extend(data['feature'].iloc[i][1]) for i in range(len(data))]  # 50개마다 다른 차량
+
+    xDict = {'x_x' : x_x,
+                'x_y' : x_y}
+    xDf = pd.DataFrame(xDict)
+
+    flag = int(len(data) * ratio)  # 210
+    trainX = xDf[:flag*time]
+    testX = xDf[flag*time:]
+
+
+    y_x = []
+    [y_x.append(data['label'][i][0]) for i in range(len(data['label']))]
+    y_y = []
+    [y_y.append(data['label'][i][1]) for i in range(len(data['label']))]
+
+    yDict = { 'y_x' : y_x,
+              'y_y' : y_y}
+
+    yDf = pd.DataFrame(yDict)
+
+    trainY = yDf[:flag]
+    testY = yDf[flag:]
+
+    return trainX, trainY, testX, testY
 
 if __name__ == '__main__':
 
@@ -286,45 +337,18 @@ if __name__ == '__main__':
     with open('./data/listTrainData.pickle', 'rb') as f:
         data = pickle.load(f)
 
+    trainX, trainY, testX, testY = loadData(data)
 
+    # print(trainX.head())
+    # print(trainY.head())
+    # print(testX.head())
+    # print(testY.head())
     #
-    # print(data['feature'].iloc[0][0])
-    # print(data['feature'].iloc[0][1])
-    #
-    print(data['feature'].iloc[0][0])
-    x = []
-    [x.extend(data['feature'].iloc[i][0]) for i in range(len(data))] #50개마다 다른 차량
-    y = []
-    [y.extend(data['feature'].iloc[i][1]) for i in range(len(data))]  # 50개마다 다른 차량
+    # print(len(trainX)//50)
+    # print(len(trainY))
+    # print(len(testX)//50)
+    # print(len(testY))
 
-    dataDict = {'x' : x,
-                'y' : y}
-    dataDf = pd.DataFrame(dataDict)
-
-
-    flag = int(len(data) * 0.7)  # 210
-    trainX = dataDf[:flag*50]
-    testX = dataDf[flag*50:]
-
-
-
-
-    X_y = sum(data['feature'][:].iloc[1][1],[])#y
-
-    xDict = { 'x' : X_x,
-              'y' : X_y}
-
-    xDf = pd.DataFrame(xDict)
-    print(xDf.iloc[0])
-
-    print(xDf.head())
-
-    sys.exit()
-
-
-
-    # trainData = data.iloc[:flag]
-    # testData = data.iloc[flag:]
 
     #INIT - model
     #####################
@@ -343,6 +367,6 @@ if __name__ == '__main__':
     loss_fn = torch.nn.MSELoss()
     optimiser = torch.optim.Adam(model.parameters(), lr=0.01)
 
-    train(trainData)
-    test(testData)
+    train(trainX, trainY)
+    test(testX, testY)
 

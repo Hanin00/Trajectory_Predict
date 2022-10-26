@@ -2,23 +2,10 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="bcc6e4c8-33a7-4d8a-8c6a-8786db4e3614" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/data/data_ver2_1025.pickle" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/preprocessing/001.jpg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/preprocessing/002.jpg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/preprocessing/creDData_ver1.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/preprocessing/creDData_ver2.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/preprocessing/createDummData.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/preprocessing/data_prof.pickle" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/preprocessing/listTrainData.pickle" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/readme.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/viewr.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/TrajectoryPredict_ver3.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/TrajectoryPredict.py" beforeDir="false" afterPath="$PROJECT_DIR$/TrajectoryPredict_ver1.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/TrajectoryPredictSub.py" beforeDir="false" afterPath="$PROJECT_DIR$/TrajectoryPredictSub.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/test-values X.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/test-values Y.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/train-values Y.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/train-values x.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/TrajectoryPredict_ver1.py" beforeDir="false" afterPath="$PROJECT_DIR$/TrajectoryPredict_ver1.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -55,21 +42,21 @@
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="WebServerToolWindowFactoryState" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/preprocessing" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
     <property name="node.js.detected.package.eslint" value="true" />
     <property name="node.js.selected.package.eslint" value="(autodetect)" />
   </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="D:\Semester2201\LAB\Trajectory_Predict" />
       <recent name="D:\Semester2201\LAB\Trajectory_Predict\preprocessing" />
       <recent name="D:\Semester2201\LAB\Trajectory_Predict\data" />
-      <recent name="D:\Semester2201\LAB\Trajectory_Predict" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
       <recent name="D:\Semester2201\LAB\Trajectory_Predict\data" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.TrajectoryPredictSub">
+  <component name="RunManager" selected="Python.TrajectoryPredict_ver3">
     <configuration name="TrajectoryPredictSub" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -114,20 +101,20 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="creDData_ver2" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="TrajectoryPredict_ver3" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
       <envs>
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="C:\Users\Haeun\AppData\Local\Programs\Python\Python39\python.exe" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/preprocessing" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
       <option name="IS_MODULE_SDK" value="false" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <module name="" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/preprocessing/creDData_ver2.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/TrajectoryPredict_ver3.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -182,11 +169,11 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.TrajectoryPredict_ver3" />
+        <item itemvalue="Python.TrajectoryPredict_ver1" />
         <item itemvalue="Python.TrajectoryPredictSub" />
         <item itemvalue="Python.creDData_ver2_copy" />
         <item itemvalue="Python.viewr" />
-        <item itemvalue="Python.TrajectoryPredict_ver1" />
-        <item itemvalue="Python.creDData_ver2" />
       </list>
     </recent_temporary>
   </component>
@@ -201,7 +188,7 @@
       <workItem from="1666649851680" duration="4321000" />
       <workItem from="1666657510081" duration="10767000" />
       <workItem from="1666671062092" duration="685000" />
-      <workItem from="1666671915521" duration="13722000" />
+      <workItem from="1666671915521" duration="36863000" />
     </task>
     <servers />
   </component>
@@ -224,7 +211,7 @@
       <breakpoints>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/TrajectoryPredictSub.py</url>
-          <line>273</line>
+          <line>293</line>
           <option name="timeStamp" value="1" />
         </line-breakpoint>
       </breakpoints>
@@ -232,8 +219,9 @@
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/Trajectory_Predict$creDData_ver2_copy.coverage" NAME="creDData_ver2_copy Coverage Results" MODIFIED="1666676660329" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/preprocessing" />
-    <SUITE FILE_PATH="coverage/Trajectory_Predict$TrajectoryPredict_ver1.coverage" NAME="TrajectoryPredict_ver1 Coverage Results" MODIFIED="1666671595542" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/Trajectory_Predict$TrajectoryPredictSub.coverage" NAME="TrajectoryPredictSub Coverage Results" MODIFIED="1666687042085" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Trajectory_Predict$TrajectoryPredictSub.coverage" NAME="TrajectoryPredictSub Coverage Results" MODIFIED="1666729189590" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Trajectory_Predict$TrajectoryPredict_ver1.coverage" NAME="TrajectoryPredict_ver1 Coverage Results" MODIFIED="1666735457390" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Trajectory_Predict$TrajectoryPredict_ver3.coverage" NAME="TrajectoryPredict_ver3 Coverage Results" MODIFIED="1666745177419" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Trajectory_Predict$creDData_ver2.coverage" NAME="creDData_ver2 Coverage Results" MODIFIED="1666671592470" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/preprocessing" />
     <SUITE FILE_PATH="coverage/Trajectory_Predict$viewr.coverage" NAME="viewr Coverage Results" MODIFIED="1666666796417" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>

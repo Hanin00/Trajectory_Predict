@@ -1,4 +1,3 @@
-import keras.layers
 import pandas as pd
 import numpy as np
 
@@ -38,25 +37,8 @@ matplotlib.rcParams['axes.unicode_minus'] =False
 # print(len(data.iloc[0][:]))
 # print(data.iloc[0][:][1])
 
+
 def loadData(data) :
-
-
-    trainX = trainData['feature'].values
-    trainY = trainData['label']
-
-    print(trainY)
-    sys.exit()
-
-    trainX_new = []
-    for i in range(len(trainX)):
-        for j in trainX[i]:
-            trainX_new.append(j)
-
-
-    trainX = pd.DataFrame(trainX_new, columns=['x', 'y'])
-    trainY = pd.DataFrame(trainX_new, columns=['x', 'y'])
-
-
     x_x = data.iloc[:][0][0]
     x_y = data.iloc[:][0][1]
     y = data.iloc[:][1]
@@ -87,6 +69,7 @@ def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
     for i in range(n_in, 0, -1):
         cols.append(df.shift(i))
         names += [('var%d(t-%d)' % (j+1, i)) for j in range(n_vars)]
+
     # forecast sequence (t, t+1, ... t+n)
     for i in range(0, n_out):
         cols.append(df.shift(-i))
@@ -97,8 +80,6 @@ def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
     # put it all together
     agg = pd.concat(cols, axis=1)
     agg.columns = names
-
-    print(agg.head())
     # drop rows with NaN values
     if dropnan:
         agg.dropna(inplace=True)
@@ -121,10 +102,18 @@ class LSTM(nn.Module):
         self.fc = nn.Linear(hidden_dim, output_dim)
 
     def forward(self, x):
+        # Initialize hidden state with zeros
+        # fc = nn.Linear(hidden_dim, output_dim)
+
         h0 = torch.zeros(self.num_layers, x.size(1), self.hidden_dim).requires_grad_()
+
         # Initialize cell state
         c0 = torch.zeros(self.num_layers, x.size(1), self.hidden_dim).requires_grad_()
 
+        # We need to detach as we are doing truncated backpropagation through time (BPTT)
+        # If we don't, we'll backprop  all the way to the start even after going through another batch
+
+        # out, (hn, cn) = self.lstm(x, (h0.detach(), c0.detach()))
         out, (hn, cn) = self.lstm(x)
 
         # Index hidden state of last time step
@@ -155,6 +144,11 @@ def train(trainData) :
 
             train_X = torch.Tensor(train_X)
             train_y = torch.Tensor(train_y)
+
+            print(train_X)
+            print(train_X[0])
+            sys.exit()
+
 
             y_train_pred = model(train_X)
 
@@ -285,4 +279,3 @@ if __name__ == '__main__':
 
     train(trainData)
     test(testData)
-
