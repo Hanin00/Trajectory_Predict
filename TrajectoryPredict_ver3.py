@@ -51,7 +51,6 @@ def series_to_supervised(dataX, n_in=1, n_out=1, dropnan=True):
     #
 
     for i in range(n_in, 0, -1):
-        print(i)
         cols.append(df.shift(i))
         names += [('var%d(t-%d)' % (j+1, i)) for j in range(n_vars)] #var1(t-50)
 
@@ -166,16 +165,16 @@ def training(trainData):
 
     # train-values의 X값 비교
     plt.title(label="train-values의 X값 비교")
-    plt.plot(list(range(len(train_values[:, 0]))), train_values[:, 0], label='raw_trajectory', c='b')
-    plt.plot(list(range(len(train_predict[:, 0]))), train_predict[:, 0].detach().numpy(), label='test_predict', c='r')
+    plt.plot(list(range(len(train_y[:, 0]))), train_y[:, 0], label='raw_trajectory', c='b')
+    plt.plot(list(range(len(train_predict[:, 0]))), train_predict[:, 0].detach().numpy(), label='predict', c='r')
     plt.legend()
     plt.show()
 
     plt.gca()
     # train-values의 Y값 비교
     plt.title(label="train-values의 Y값 비교")
-    plt.plot(list(range(len(train_values[:, 1]))), train_values[:, 1], label='raw_trajectory', c='b')
-    plt.plot(list(range(len(train_predict[:, 1]))), train_predict[:, 1].detach().numpy(), label='test_predict', c='r')
+    plt.plot(list(range(len(train_y[:, 1]))), train_y[:, 1], label='raw_trajectory', c='b')
+    plt.plot(list(range(len(train_predict[:, 1]))), train_predict[:, 1].detach().numpy(), label='predict', c='r')
     plt.legend()
     plt.show()
 
@@ -207,7 +206,7 @@ def test(testX, testY) :
     #test-values의 X값 비교
     plt.title(label="test-values의 X값 비교")
     plt.plot(list(range(len(test_values[:, 0]))),test_values[:, 0], label='raw_trajectory', c='b')
-    plt.plot(list(range(len(test_values[:, 0]))), test_predict[:, 0].detach().numpy(), label='test_predict', c='r')
+    plt.plot(list(range(len(test_values[:, 0]))), test_predict[:, 0].detach().numpy(), label='predict', c='r')
     plt.legend()
     plt.show()
 
@@ -215,7 +214,7 @@ def test(testX, testY) :
     # test-values의 Y값 비교
     plt.title(label="test-values의 Y값 비교")
     plt.plot(list(range(len(test_values[:, 1]))), test_values[:, 1], label='raw_trajectory', c='b')
-    plt.plot(list(range(len(test_values[:, 1]))), test_predict[:, 1].detach().numpy(), label='test_predict', c='r')
+    plt.plot(list(range(len(test_values[:, 1]))), test_predict[:, 1].detach().numpy(), label='predict', c='r')
     plt.legend()
     plt.show()
 
@@ -242,7 +241,7 @@ def loadData(data, ratio=0.7, time=50) :
 
     yData = *y_data_x, *y_data_y
     yData = torch.Tensor(list(yData)).unsqueeze(dim=1)
-    print(yData)
+
     yData = y_scaler.fit_transform(yData)
 
     scaled_yx = yData[:300]
@@ -259,9 +258,6 @@ def loadData(data, ratio=0.7, time=50) :
 
     #todo y 값은 전체 값에 대해서 normalize 한 후 변경하던가 해야 할 듯.
     totalDf =  pd.concat([trainDummDf, scaledY], axis = 1)
-
-    print(totalDf.head())
-
 
     flag = int(len(totalDf)*ratio)
     train = totalDf.iloc[:flag]
