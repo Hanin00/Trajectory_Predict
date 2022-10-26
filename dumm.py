@@ -1,327 +1,407 @@
-import keras.layers
-import pandas as pd
+#ref) https://velog.io/@lazy_learner/LSTM-%EC%8B%9C%EA%B3%84%EC%97%B4-%EC%98%88%EC%B8%A1-%EB%AA%A8%EB%93%88-%EB%A7%8C%EB%93%A4%EA%B8%B0-1
+
+
 import numpy as np
-
-import matplotlib
-import glob, os
-import seaborn as sns
-import sys
-from sklearn.preprocessing import MinMaxScaler
-import sys
-import random
-
-from pylab import mpl, plt
-
-from datetime import datetime
-import math, time
-import itertools
-import datetime
-from operator import itemgetter
-from sklearn.metrics import mean_squared_error
-from sklearn.preprocessing import MinMaxScaler
-from math import sqrt
-import torch
-import torch.nn as nn
-from torch.autograd import Variable
-import pickle
+import pandas as pd
+import matplotlib.pyplot as plt
+import tensorflow as tf
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.layers import LSTM
+from tensorflow.keras.layers import Dropout
+from tensorflow.keras.layers import Activation
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.losses import MSE
+from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.callbacks import ReduceLROnPlateau
 
 
+class ForecastLSTM:
+    def __init__(self, random_seed: int = 1234):
+        self.random_seed = random_seed
 
-import networkx as nx
-with open('./data/subs.pkl', 'rb') as f:
-    data = pickle.load(f)
-print(len(data))
-print(data[0].nodes(data=True))
-sys.exit()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-matplotlib.rcParams['font.family'] ='Malgun Gothic'
-matplotlib.rcParams['axes.unicode_minus'] =False
-
-#[전체 데이터 개수,300][2 - XY][2 - 0 : x, 1 : y]
-# print(len(data.iloc[0]))
-# data.iloc[0][:][0][0]
-# print(data.iloc[0][:][0][1])
-# print(len(data.iloc[0][:][0][0]))
-# print(len(data.iloc[0][:][0][1]))
-# print(len(data.iloc[0][:]))
-# print(data.iloc[0][:][1])
-
-
-
-
-def loadData(data) :
-    x_x = data.iloc[:][0][0]
-    x_y = data.iloc[:][0][1]
-    y = data.iloc[:][1]
-
-    print(x_x)
-    print(x_y)
-    print(y)
-
-
-
-    i = 0
-    data = {"x_x": x_x,
-            "x_y": x_y, }
-    dataPd = pd.DataFrame(data)
-    dataPd.loc[len(dataPd)] = y
-
-    scaler = MinMaxScaler(feature_range=(0, 1))
-    scaled_data = scaler.fit_transform(dataPd[['x_x', 'x_y']].values)
-    reframed = series_to_supervised(scaled_data, 5,1)  # t = 50 ;  # 12 -> step = 5 + predict = 1 <- feature = x_pos, y_pos
-
-
-    print(reframed.head())
-
-    train_days = 50  # 50
-    # valid_days = 2
-    values = reframed.values
-    train = values[:train_days + 1, :, ]
-
-    print(train.head())
-    sys.exit()
-
-    # valid = values[-valid_days:, :] #<-전체 데이터에서 분류할 것
-    # return values, train, valid
-    return values, train, scaler
-
-def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
-    n_vars = 1 if type(data) is list else data.shape[1]
-    df = pd.DataFrame(data)
-    cols, names = list(), list()
-    # input sequence (t-n, ... t-1)
-    for i in range(n_in, 0, -1):
-        cols.append(df.shift(i))
-        names += [('var%d(t-%d)' % (j+1, i)) for j in range(n_vars)]
-    # forecast sequence (t, t+1, ... t+n)
-    for i in range(0, n_out):
-        cols.append(df.shift(-i))
-        if i == 0:
-            names += [('var%d(t)' % (j+1)) for j in range(n_vars)]
+    def reshape_dataset(self, df: pd.DataFrame) -> np.array:
+        # y 컬럼을 데이터프레임의 맨 마지막 위치로 이동
+        if "y" in df.columns:
+            df = df.drop(columns=["y"]).assign(y=df["y"])
         else:
-            names += [('var%d(t+%d)' % (j+1, i)) for j in range(n_vars)]
+            raise KeyError("Not found target column 'y' in dataset.")
+
+        # shape 변경
+        dataset = df.values.reshape(df.shape)
+        return dataset
+
+    def split_sequences(
+            self, dataset: np.array, seq_len: int, steps: int, single_output: bool
+    ) -> tuple:
+
+        # feature와 y 각각 sequential dataset을 반환할 리스트 생성
+        X, y = list(), list()
+        # sequence length와 step에 따라 sequential dataset 생성
+        for i, _ in enumerate(dataset):
+            idx_in = i + seq_len
+            idx_out = idx_in + steps
+            if idx_out > len(dataset):
+                break
+            seq_x = dataset[i:idx_in, :-1]
+            if single_output:
+                seq_y = dataset[idx_out - 1: idx_out, -1]
+            else:
+                seq_y = dataset[idx_in:idx_out, -1]
+            X.append(seq_x)
+            y.append(seq_y)
+        return np.array(X), np.array(y)
+
+    def split_train_valid_dataset(
+            self,
+            df: pd.DataFrame,
+            seq_len: int,
+            steps: int,
+            single_output: bool,
+            validation_split: float = 0.3,
+            verbose: bool = True,
+    ) -> tuple:
+        # dataframe을 numpy array로 reshape
+        dataset = self.reshape_dataset(df=df)
+
+        # feature와 y를 sequential dataset으로 분리
+        X, y = self.split_sequences(
+            dataset=dataset,
+            seq_len=seq_len,
+            steps=steps,
+            single_output=single_output,
+        )
+
+        # X, y에서 validation dataset 분리
+        dataset_size = len(X)
+        train_size = int(dataset_size * (1 - validation_split))
+        X_train, y_train = X[:train_size, :], y[:train_size, :]
+        X_val, y_val = X[train_size:, :], y[train_size:, :]
+        if verbose:
+            print(f" >>> X_train: {X_train.shape}")
+            print(f" >>> y_train: {y_train.shape}")
+            print(f" >>> X_val: {X_val.shape}")
+            print(f" >>> y_val: {y_val.shape}")
+        return X_train, y_train, X_val, y_val
+
+    def build_and_compile_lstm_model(
+            self,
+            seq_len: int,
+            n_features: int,
+            lstm_units: list,
+            learning_rate: float,
+            dropout: float,
+            steps: int,
+            metrics: str,
+            single_output: bool,
+            last_lstm_return_sequences: bool = False,
+            dense_units: list = None,
+            activation: str = None,
+    ):
+        """
+        LSTM 네트워크를 생성한 결과를 반환한다.
+
+        :param seq_len: Length of sequences. (Look back window size)
+        :param n_features: Number of features. It requires for model input shape.
+        :param lstm_units: Number of cells each LSTM layers.
+        :param learning_rate: Learning rate.
+        :param dropout: Dropout rate.
+        :param steps: Length to predict.
+        :param metrics: Model loss function metric.
+        :param single_output: Whether 'yhat' is a multiple value or a single value.
+        :param last_lstm_return_sequences: Last LSTM's `return_sequences`. Allow when `single_output=False` only.
+        :param dense_units: Number of cells each Dense layers. It adds after LSTM layers.
+        :param activation: Activation function of Layers.
+        """
+        tf.random.set_seed(self.random_seed)
+        model = Sequential()
+
+        if len(lstm_units) > 1:
+            # LSTM -> ... -> LSTM -> Dense(steps)
+            model.add(
+                LSTM(
+                    units=lstm_units[0],
+                    activation=activation,
+                    return_sequences=True,
+                    input_shape=(seq_len, n_features),
+                )
+            )
+            lstm_layers = lstm_units[1:]
+            for i, n_units in enumerate(lstm_layers, start=1):
+                if i == len(lstm_layers):
+                    if single_output:
+                        return_sequences = False
+                    else:
+                        return_sequences = last_lstm_return_sequences
+                    model.add(
+                        LSTM(
+                            units=n_units,
+                            activation=activation,
+                            return_sequences=return_sequences,
+                        )
+                    )
+                else:
+                    model.add(
+                        LSTM(
+                            units=n_units,
+                            activation=activation,
+                            return_sequences=True,
+                        )
+                    )
+        else:
+            # LSTM -> Dense(steps)
+            if single_output:
+                return_sequences = False
+            else:
+                return_sequences = last_lstm_return_sequences
+            model.add(
+                LSTM(
+                    units=lstm_units[0],
+                    activation=activation,
+                    return_sequences=return_sequences,
+                    input_shape=(seq_len, n_features),
+                )
+            )
+
+        if single_output:  # Single Step, Direct Multi Step
+            if dense_units:
+                for n_units in dense_units:
+                    model.add(Dense(units=n_units, activation=activation))
+            if dropout > 0:
+                model.add(Dropout(rate=dropout))
+            model.add(Dense(1))
+        else:  # Multiple Output Step
+            if last_lstm_return_sequences:
+                model.add(Flatten())
+            if dense_units:
+                for n_units in dense_units:
+                    model.add(Dense(units=n_units, activation=activation))
+            if dropout > 0:
+                model.add(Dropout(rate=dropout))
+            model.add(Dense(units=steps))
+
+        # Compile the model
+        optimizer = Adam(learning_rate=learning_rate)
+        model.compile(optimizer=optimizer, loss=MSE, metrics=metrics)
+        return model
+
+    def fit_lstm(
+            self,
+            df: pd.DataFrame,
+            steps: int,
+            lstm_units: list,
+            activation: str,
+            dropout: float = 0,
+            seq_len: int = 16,
+            single_output: bool = False,
+            epochs: int = 200,
+            batch_size: int = None,
+            steps_per_epoch: int = None,
+            learning_rate: float = 0.001,
+            patience: int = 10,
+            validation_split: float = 0.3,
+            last_lstm_return_sequences: bool = False,
+            dense_units: list = None,
+            metrics: str = "mse",
+            check_point_path: str = None,
+            verbose: bool = False,
+            plot: bool = True,
+    ):
+        """
+        LSTM 기반 모델 훈련을 진행한다.
+
+        :param df: DataFrame for model train.
+        :param steps: Length to predict.
+        :param lstm_units: LSTM, Dense Layers
+        :param activation: Activation function for LSTM, Dense Layers.
+        :param dropout: Dropout ratio between Layers.
+        :param seq_len: Length of sequences. (Look back window size)
+        :param single_output: Select whether 'y' is a continuous value or a single value.
+        """
+
+        np.random.seed(self.random_seed)
+        tf.random.set_seed(self.random_seed)
+
+        # 훈련, 검증 데이터셋 생성
+        (
+            self.X_train,
+            self.y_train,
+            self.X_val,
+            self.y_val,
+        ) = self.split_train_valid_dataset(
+            df=df,
+            seq_len=seq_len,
+            steps=steps,
+            validation_split=validation_split,
+            single_output=single_output,
+            verbose=verbose,
+        )
+
+        # LSTM 모델 생성
+        n_features = df.shape[1] - 1
+        self.model = self.build_and_compile_lstm_model(
+            seq_len=seq_len,
+            n_features=n_features,
+            lstm_units=lstm_units,
+            activation=activation,
+            learning_rate=learning_rate,
+            dropout=dropout,
+            steps=steps,
+            last_lstm_return_sequences=last_lstm_return_sequences,
+            dense_units=dense_units,
+            metrics=metrics,
+            single_output=single_output,
+        )
+
+        # 모델 적합 과정에서 best model 저장
+        if check_point_path is not None:
+            # create checkpoint
+            checkpoint_path = f"checkpoint/lstm_{check_point_path}.h5"
+            checkpoint = ModelCheckpoint(
+                filepath=checkpoint_path,
+                save_weights_only=False,
+                save_best_only=True,
+                monitor="val_loss",
+                verbose=verbose,
+            )
+            rlr = ReduceLROnPlateau(
+                monitor="val_loss", factor=0.5, patience=patience, verbose=verbose
+            )
+            callbacks = [checkpoint, EarlyStopping(patience=patience), rlr]
+        else:
+            rlr = ReduceLROnPlateau(
+                monitor="val_loss", factor=0.5, patience=patience, verbose=verbose
+            )
+            callbacks = [EarlyStopping(patience=patience), rlr]
+
+        # 모델 훈련
+        self.history = self.model.fit(
+            self.X_train,
+            self.y_train,
+            batch_size=batch_size,
+            steps_per_epoch=steps_per_epoch,
+            validation_data=(self.X_val, self.y_val),
+            epochs=epochs,
+            use_multiprocessing=True,
+            workers=8,
+            verbose=verbose,
+            callbacks=callbacks,
+            shuffle=False,
+        )
+
+        # 훈련 종료 후 best model 로드
+        if check_point_path is not None:
+            self.model.load_weights(f"checkpoint/lstm_{check_point_path}.h5")
+
+        # 모델링 과정 시각화
+        if plot:
+            plt.figure(figsize=(12, 6))
+            plt.plot(self.history.history[f"{metrics}"])
+            plt.plot(self.history.history[f"val_{metrics}"])
+            plt.title("Performance Metric")
+            plt.xlabel("Epoch")
+            plt.ylabel(f"{metrics}")
+            if metrics == "mape":
+                plt.axhline(y=10, xmin=0, xmax=1, color="grey", ls="--", alpha=0.5)
+            plt.legend(["Train", "Validation"], loc="upper right")
+            plt.show()
 
 
-    # put it all together
-    agg = pd.concat(cols, axis=1)
-    agg.columns = names
-    # drop rows with NaN values
-    if dropnan:
-        agg.dropna(inplace=True)
-    return agg
+    def forecast_validation_dataset(self) -> pd.DataFrame:
+        # 검증 데이터셋의 실제 값(y)과, 예측 값(yhat)을 저장할 리스트 생성
+        y_pred_list, y_val_list = list(), list()
 
-# Here we define our model as a class
-class LSTM(nn.Module):
-    def __init__(self, input_dim, hidden_dim, num_layers,
-                 output_dim):  # num_layers : 2, hidden_dim : 32, input_dim : 1, self : LSTM(1,32,2,batch_firsttrue)
-        super(LSTM, self).__init__()
-        # Hidden dimensions
-        self.hidden_dim = hidden_dim
-        # Number of hidden layers
-        self.num_layers = num_layers
+        # 훈련된 모델로 validation dataset에 대한 예측값 생성
+        for x_val, y_val in zip(self.X_val, self.y_val):
+            x_val = np.expand_dims(
+                x_val, axis=0
+            )  # (seq_len, n_features) -> (1, seq_len, n_features)
+            y_pred = self.model.predict(x_val)[0]
+            y_pred_list.extend(y_pred.tolist())
+            y_val_list.extend(y_val.tolist())
+        return pd.DataFrame({"y": y_val_list, "yhat": y_pred_list})
 
-        # batch_first=True causes input/output tensors to be of shape
-        # (batch_dim, seq_dim, feature_dim)
-        self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
-        # Readout layer
-        self.fc = nn.Linear(hidden_dim, output_dim)
+    def calculate_metrics(df_fcst: pd.DataFrame) -> dict:
+        true = df_fcst["y"]
+        pred = df_fcst["yhat"]
 
-    def forward(self, x):
-        # Initialize hidden state with zeros
-        # fc = nn.Linear(hidden_dim, output_dim)
-
-        h0 = torch.zeros(self.num_layers, x.size(1), self.hidden_dim).requires_grad_()
-
-        # Initialize cell state
-        c0 = torch.zeros(self.num_layers, x.size(1), self.hidden_dim).requires_grad_()
-
-        # We need to detach as we are doing truncated backpropagation through time (BPTT)
-        # If we don't, we'll backprop  all the way to the start even after going through another batch
-
-        # out, (hn, cn) = self.lstm(x, (h0.detach(), c0.detach()))
-        out, (hn, cn) = self.lstm(x)
-
-        # Index hidden state of last time step
-        # out.size() --> 100, 32, 100
-        # out[:, -1, :] --> 100, 100 --> just want last time step hidden states!
-        # out = self.fc(out[:, -1, :])
-        out = self.fc(out[:, :])
-        # out.size() --> 100, 10
-        return out
-
-
-
-def train(trainData) :
-    loss_fn = torch.nn.MSELoss()
-    optimiser = torch.optim.Adam(model.parameters(), lr=0.01)
-# 데이터 하나 당 epoch 씩 학습
-    for i in range(len(trainData)) :
-
-        train_values, train_data, scaler = loadData(trainData.iloc[i])
-
-
-
-
-
-
-        train_X, train_y = train_data[:, :-2], train_data[:, -2:]  # 끝에 두 개가  Y의 x,y에 대한 예측값
-
-        train_X = torch.Tensor(train_X)
-        train_y = torch.Tensor(train_y)
-
-        print(train_X.shape, train_y.shape) #(46, 10) (46, 2)
-        print("train data Num : ",i)
-        for t in range(num_epochs):
-
-            train_X = torch.Tensor(train_X)
-            train_y = torch.Tensor(train_y)
-
-            y_train_pred = model(train_X)
-
-            loss = loss_fn(y_train_pred, train_y)
-
-            x_loss = loss_fn(y_train_pred[:, 0], train_y[:, 0])
-            y_loss = loss_fn(y_train_pred[:, 1], train_y[:, 1])
-
-            if t % 10 == 0 and t != 0:
-                print("Epoch ", t, "MSE: ", loss.item())
-                print("x_loss : ", x_loss.item())
-                print("y_loss : ", y_loss.item())
-
-            hist[t] = loss.item()
-
-
-            # Zero out gradient, else they will accumulate between epochs
-            optimiser.zero_grad()
-
-            # Backward pass
-            loss.backward()
-
-            x_loss.backward()
-            hist1[t] = x_loss.item()
-            y_loss.backward()
-            hist2[t] = y_loss.item()
-
-            # Update parameters
-            optimiser.step()
-            train_predict = model(train_X)
-
-
-    plt.figure(figsize=(24, 8))
-    plt.xlabel('x')
-    plt.ylabel('y')
-
-
-    # train-values의 X값 비교
-    plt.title(label="train-values의 X값 비교")
-    plt.plot(list(range(len(train_values[:, 0]))), train_values[:, 0], label='raw_trajectory', c='b')
-    plt.plot(list(range(len(train_predict[:, 0]))), train_predict[:, 0].detach().numpy(), label='test_predict', c='r')
-    plt.legend()
-    plt.show()
-
-    plt.gca()
-    # train-values의 Y값 비교
-    plt.title(label="train-values의 Y값 비교")
-    plt.plot(list(range(len(train_values[:, 1]))), train_values[:, 1], label='raw_trajectory', c='b')
-    plt.plot(list(range(len(train_predict[:, 1]))), train_predict[:, 1].detach().numpy(), label='test_predict', c='r')
-    plt.legend()
-    plt.show()
-    #
-    # x_loss = loss_fn(train_values[:,0],train_predict[:,0])
-    # y_loss = loss_fn(train_values[:,1],train_predict[:,1])
-    #
-    # print(x_loss)
-
-
-def test(testData) :
-    # 데이터 하나 당 epoch 씩 학습
-    for i in range(len(testData)):
-        test_values, test_data, scaler  = loadData(testData.iloc[i])
-        test_X, test_y = test_data[:, :-2], test_data[:, -2:]  # 끝에 두 개가  Y의 x,y에 대한 예측값
-
-        test_X = torch.Tensor(test_X)
-        test_y = torch.Tensor(test_y)
-
-        #todo - loss 가 이 위치 또는 더 상위에 있어야 하나?
-        test_X = torch.Tensor(test_X)
-        test_y = torch.Tensor(test_y)
-        y_test_pred = model(test_X)
-
-        loss = loss_fn(y_test_pred, test_y)
-        print("test loss : ", loss.item())
-
-        # x_loss = loss_fn(test_values[0], test_y[0])
-        # y_loss = loss_fn(test_values[1], test_y[1])
-        #
-        # print("x_loss : ",x_loss.item())
-        # print("y_loss : ",y_loss.item())
-
-
-        test_predict = model(test_X)
-
-
-    plt.figure(figsize=(24, 8))
-    plt.xlabel('x')
-    plt.ylabel('y')
-    # for LSTM
-    #test-values의 X값 비교
-    plt.title(label="test-values의 X값 비교")
-    plt.plot(list(range(len(test_values[:, 0]))),test_values[:, 0], label='raw_trajectory', c='b')
-    plt.plot(list(range(len(test_values[:, 0]))), test_predict[:, 0].detach().numpy(), label='test_predict', c='r')
-    plt.legend()
-    plt.show()
-
-    plt.gca()
-    # test-values의 Y값 비교
-    plt.title(label="test-values의 Y값 비교")
-    plt.plot(list(range(len(test_values[:, 1]))), test_values[:, 1], label='raw_trajectory', c='b')
-    plt.plot(list(range(len(test_values[:, 1]))), test_predict[:, 1].detach().numpy(), label='test_predict', c='r')
-    plt.legend()
-    plt.show()
-
+        mae = (true - pred).abs().mean()
+        mape = (true - pred).abs().div(true).mean() * 100
+        mse = ((true - pred) ** 2).mean()
+        return {
+            "mae": mae,
+            "mape": mape,
+            "mse": mse,
+        }
 
 if __name__ == '__main__':
 
     path = "D:/Semester2201/LAB/Vessel_Trajectory_Prediction-main/"
 
     # with open('./data/data_prof.pickle', 'rb') as f :
+    # with open('./data/data_ver2_1025.pickle', 'rb') as f :
     with open('./data/listTrainData.pickle', 'rb') as f:
         data = pickle.load(f)
 
-    flag = int(len(data) * 0.7) # 210
-    print(flag)
-    trainData = data.iloc[:flag]
-    testData = data.iloc[flag:]
+    # trainX, trainY, testXmodel, testY = loadData(data)
+    # 나중에 denomalize 할 때 사용하려면, 전체 데이터에 대해 scale 해야 하는 것 아닌가? 어차피 상관 없나?
 
-    #INIT - model
-    #####################
-    num_epochs = 200
-    hist = np.zeros(num_epochs)
+    trainX, trainY, testX, testY = loadData(data)
 
-    # Number of steps to unroll
-    # seq_dim = look_back - 1
-    input_dim = 10
-    hidden_dim = 128
-    num_layers = 2
-    output_dim = 2
+    #trainX를 50개씩 끊어서 모델에 넣어야 할 듯. 그래야 sequential이 될 것 같음
+    print(len(trainX))
+    trainXList = []
+    a = []
+    cnt = 0
+    for i in range(len(trainX)) :
+        a.append(trainX[i])
+        cnt += 1
+        if cnt == 50 :
+            trainXList.append(a)
+            a = []
+            cnt = 0
 
-    model = LSTM(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, num_layers=num_layers)
-    loss_fn = torch.nn.MSELoss()
-    optimiser = torch.optim.Adam(model.parameters(), lr=0.01)
+    ## 1) Train, Test 데이터 분리
+    cutoff = "2022-01-01"
+    df_train = df[df.index < cutoff]
+    df_test = df[df.index >= cutoff]
 
-    train(trainData)
-    test(testData)
+    ## 2) Sequence Length, 예측 기간(Step), Single Output 여부 등 정의
+    seq_len = 5  # 과거 5주의 데이터를 feature로 사용
+    steps = 5  # 향후 5주의 y를 예측
+    single_output = False  # 향후 5주차의 시점만이 아닌, 1~5주 모두 예측
+    metric = "mse"  # 모델 성능 지표
+
+    ## 3) LSTM 하이퍼파라미터 정의
+    lstm_params = {
+        "seq_len": seq_len,
+        "epochs": 300,  # epochs 반복 횟수
+        "patience": 30,  # early stopping 조건
+        "steps_per_epoch": 5,  # 1 epochs 시 dataset을 5개로 분할하여 학습
+        "learning_rate": 0.01,
+        "dense_units": [64, 32],  # Dense Layer: 2, Unit: (64, 32)
+        "dropout": 0,
+        "validation_split": 0.3,  # 검증 데이터셋 30%
+    }
+
+    ## 4) 모델 훈련
+    fl = ForecastLSTM()
+    fl.fit_lstm(
+        df=df_train,
+        steps=steps,
+        single_output=single_output,
+        metrics=metrics,
+        **lstm_params,
+    )
+
+    ## 5) Validation dataset 예측 성능
+    df_fcst_val = fl.forecast_validation_dataset()
+    val_loss = calculate_metrics(df_fcst=df_fcst_val)[metrics]
+    print(f"{metrics} of validation dataset: {val_loss.round(3)}")
+    # ForecastLSTM.split_train_valid_dataset = split_train_valid_dataset
+    # ForecastLSTM.split_sequences = split_sequences
+    # ForecastLSTM.reshape_dataset = reshape_dataset
+
+
 

@@ -81,8 +81,9 @@ class LSTM(nn.Module):
         self.hidden_dim = hidden_dim
         # Number of hidden layers
         self.num_layers = num_layers
-
-        self.c1 = nn.Conv1d(in_channels=1, out_channels=1, kernel_size=2, stride=1)  # 1D CNN 레이어 추가
+        self.c1 = nn.Conv1d(in_channels=input_1d.shape[1], out_channels=input_1d.shape[2],
+                            kernel_size=input_1d.shape[2], stride=input_1d.shape[1])
+        # self.c1 = nn.Conv1d(in_channels=1, out_channels=1, kernel_size=2, stride=1)  # 1D CNN 레이어 추가
         # batch_first=True causes input/output tensors to be of shape
         # (batch_dim, seq_dim, feature_dim)
         self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
@@ -100,6 +101,10 @@ class LSTM(nn.Module):
         #[50, 49, -1]
 
         sequences = self.c1(sequences.view(len(sequences), 1, -1))
+
+        sequences = self.c1(in_channels=input_1d.shape[1], out_channels=input_1d.shape[2],
+                            kernel_size=input_1d.shape[2], stride=input_1d.shape[1])
+
         lstm_out, self.hidden = self.lstm(
             sequences.view(len(sequences), self.seq_len - 1, -1),
             self.hidden
@@ -132,8 +137,9 @@ def train_model(model, trainX, trainY, val_data=None, val_labels=None, num_epoch
     train_hist = []
     val_hist = []
 
-    # xDumm = torch.Tensor(trainX)
+    xDumm = torch.Tensor(trainX)
     xNpArray = np.array(trainX)
+
 
     # xDumm = {'x' : trainX_x}
     # trainx_dumm = pd.DataFrame(xDumm)
@@ -141,6 +147,18 @@ def train_model(model, trainX, trainY, val_data=None, val_labels=None, num_epoch
     # trainy_dumm = pd.DataFrame(yDumm)
     # print(len(xDumm)) #210
     # print(len(xDumm[0])) #50
+
+    input_1d = xDumm
+    print(input_1d.shape)
+    sys.exit()
+
+
+
+    # cnn1d_4 = nn.Conv1d(in_channels=input_1d.shape[1], out_channels=input_1d.shape[2], kernel_size=input_1d.shape[2], stride=input_1d.shape[1])
+    # print("cnn1d_4: \n")
+    # print(cnn1d_4(input_1d).shape, "\n") #torch.Size([210, 2, 1])
+    # print(cnn1d_4(input_1d)) #t
+    # print(len(cnn1d_4(input_1d))) #210 -> 두 번 째
 
     for t in range(num_epochs):
         epoch_loss = 0
@@ -273,6 +291,27 @@ def loadData(data, ratio=0.7, time=50) :
     testX = scaled_x_total[xflag:]
     testY = scaled_y_total[yflag:]
 
+    trainX_x = [trainX[i][0] for i in range(len(trainX))]
+    trainX_y = [trainX[i][1] for i in range(len(trainX))]
+
+    trainXdict = {'x': trainX_x,
+                  'y': trainX_y}
+    Xdf = pd.DataFrame(trainXdict)
+
+    trainY_x = [trainY[i][0] for i in range(len(trainY))]
+    trainY_y = [trainY[i][1] for i in range(len(trainY))]
+
+    trainYdict = {'x': trainY_x,
+                  'y': trainY_y}
+    Ydf = pd.DataFrame(trainYdict)
+
+    # todo - Xdf.columns = ['x','y']
+
+    xDumm = torch.Tensor(trainX)
+    print(xDumm.shape)
+    sys.exit()
+
+
 
     return trainX, trainY, testX, testY
 
@@ -313,14 +352,17 @@ if __name__ == '__main__':
 
     # Number of steps to unroll
     # seq_dim = look_back - 1
-    input_dim = 100
+    input_dim = trainXList.shape
     hidden_dim = 128
 
     num_layers = 2
     output_dim = 2
     seq_len = 50
 
+
     model = LSTM(input_dim=input_dim, hidden_dim=hidden_dim, seq_len = 50, num_layers=num_layers, output_dim=output_dim)
+    # model = LSTM(input_dim=input_dim, hidden_dim=hidden_dim, seq_len = 50, num_layers=num_layers, output_dim=output_dim)
+
 
     # trainXList : 50개씩 나뉨
     train_model(model, trainXList, trainY)
