@@ -161,23 +161,17 @@ def test(testData) :
         for j in range(len(testData['feature'].iloc[i])):
             b.extend(testData['feature'].iloc[i][j])
         a.append(b)
-
     test_X = torch.Tensor(a)
     test_y = torch.Tensor(testData['label'])
     # y_test_pred = model(test_X)
 
     with torch.no_grad():
-        preds = []
-        for _ in range(len(test_X)):
-            # model.reset_hidden_state()
-            y_test_pred = model(test_X)
-            # pred = torch.flatten(y_test_pred).item()
-            preds.append(y_test_pred)
-            loss = loss_fn(y_test_pred, test_y)
-            print("loss : ", loss)
+        y_test_pred = model(test_X)
+    loss = loss_fn(y_test_pred, test_y)
+    print("loss : ", loss.detach())
 
-    plt.plot(np.array(test_y)*MAX, label = 'True')
-    plt.plot(np.array(preds)*MAX, label = 'Pred')
+    plt.plot(np.array(test_y), label = 'True')
+    plt.plot(np.array(y_test_pred), label = 'Pred')
     plt.legend()
 
 
@@ -255,7 +249,7 @@ if __name__ == '__main__':
 
     #INIT - model
     #####################
-    num_epochs = 200
+    num_epochs = 20000
     hist = np.zeros(num_epochs)
 
     input_dim = 100

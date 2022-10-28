@@ -26,6 +26,12 @@ from torch.autograd import Variable
 import pickle
 from sklearn.preprocessing import minmax_scale
 
+
+
+
+# print([[j, i] for j in range(10) for i in range(100)])
+
+
 '''
     ver 1 : 50개의 데이터를 5일마다의 간격으로 학습하고 이를 300번 반복
     ver 2 : 300*50 개의 데이터를 50일 마다
@@ -34,6 +40,7 @@ from sklearn.preprocessing import minmax_scale
 import scipy.stats as ss
 
 pd.set_option('display.max_rows', None)
+
 
 matplotlib.rcParams['font.family'] ='Malgun Gothic'
 matplotlib.rcParams['axes.unicode_minus'] =False
